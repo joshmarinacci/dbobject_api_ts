@@ -1,6 +1,8 @@
-import {JDObject, JDObjectUUID, JDProps, JDResult, JDStore} from "./index.js";
+import {JDAttachment, JDObject, JDObjectUUID, JDProps, JDResult, JDStore} from "./index.js";
 import {openDB, DBSchema, IDBPDatabase, deleteDB} from 'idb';
 import "fake-indexeddb/auto";
+import {promises as fs} from "fs"
+import path from "path"
 
 function gen_id(prefix: string):string {
     return `${prefix}_${Math.floor(Math.random()*1_000_0000)}`
@@ -22,13 +24,26 @@ interface JDSchema extends DBSchema {
     attachments: {
         key:string
         value: {
-            foo:string
-        }
+            uuid:string
+        },
+        indexes:{'by-uuid':string}
     }
 }
 
 function p(...args:any[]) {
     console.log(...args)
+}
+
+function detect_mime(buff: Buffer, opaque: any, mime: any) {
+    if(mime) return mime
+    if(typeof opaque === 'string') {
+        let ext = path.extname(opaque)
+        p("ext is",ext)
+        if(ext === '.json') {
+            return "application/json"
+        }
+    }
+    return "application/unknown"
 }
 
 class IndexedDBImpl implements JDStore {
@@ -48,6 +63,7 @@ class IndexedDBImpl implements JDStore {
                     keyPath: 'dbid',
                     autoIncrement: true,
                 });
+                atts_store.createIndex(BY_UUID, 'uuid');
             },
         });
         return {
@@ -59,8 +75,68 @@ class IndexedDBImpl implements JDStore {
     async destroy() {
         await deleteDB("my-db")
     }
-    add_attachment(object_id: JDObjectUUID, name: string, att_id: JDObjectUUID): Promise<JDResult> {
-        return Promise.resolve(undefined);
+    async add_attachment(object_id: JDObjectUUID, name: string, att: JDAttachment): Promise<JDResult> {
+        let prev_obj_ret = await this.get_object(object_id)
+        let prev_obj = prev_obj_ret.data[0]
+        let new_obj = JSON.parse(JSON.stringify(prev_obj))
+        new_obj.version = prev_obj.version+1
+        let att_ref:JDAttachment = {
+            uuid:att.uuid,
+            mime:att.mime,
+            props:{},
+            size:att.size
+        };
+        new_obj.attachments[name] = att_ref
+        delete new_obj.dbid
+        let id = await this.db.add(NODES, new_obj)
+        let new_obj2 = await this.db.get(NODES,id)
+        return {
+            success:true,
+            data:[new_obj2],
+        }
+    }
+
+    async get_attachment(object_id:JDObjectUUID, name:string):Promise<JDResult> {
+        let prev_obj_ret = await this.get_object(object_id)
+        if(!prev_obj_ret.data[0].attachments[name]) {
+            return {
+                success:false,
+                data:[],
+            }
+        }
+        let att_info:JDAttachment = prev_obj_ret.data[0].attachments[name]
+        p("att id is",att_info)
+        let arr = await this.db.getAllFromIndex(ATTACHMENTS,BY_UUID,att_info.uuid)
+        // p("att is",arr)
+        return {
+            success:true,
+            data:arr,
+        }
+    }
+
+    async get_attachment_data(att_id:JDObjectUUID):Promise<JDResult> {
+        p("att id is",att_id)
+        let arr = await this.db.getAllFromIndex(ATTACHMENTS,BY_UUID,att_id)
+        p("att is",arr)
+        return {
+            success:true,
+            data:arr,
+        }
+    }
+
+    async remove_attachment(object_id: JDObjectUUID, name: string): Promise<JDResult> {
+        let prev_obj_ret = await this.get_object(object_id)
+        let prev_obj = prev_obj_ret.data[0]
+        let new_obj = JSON.parse(JSON.stringify(prev_obj))
+        new_obj.version = prev_obj.version+1
+        delete new_obj.attachments[name]
+        delete new_obj.dbid
+        let id = await this.db.add(NODES, new_obj)
+        let new_obj2 = await this.db.get(NODES,id)
+        return {
+            success:true,
+            data:[new_obj2],
+        }
     }
 
     delete_object(object_id: JDObjectUUID): Promise<JDResult> {
@@ -92,12 +168,30 @@ class IndexedDBImpl implements JDStore {
         }
     }
 
-    new_attachment(props: JDProps, opaque: any): Promise<JDResult> {
-        return Promise.resolve(undefined);
+    async new_attachment(props: JDProps, opaque: any): Promise<JDResult> {
+        let buff = await fs.readFile(opaque)
+        // p("buffer is",buff.toString())
+        let att:JDAttachment = {
+            uuid: gen_id('attachment'),
+            mime: detect_mime(buff,opaque,props.mime),
+            props: {},
+            size: buff.length,
+        }
+        if(props) Object.keys(props).forEach(name => {
+            att.props[name] = props[name]
+        })
+        // @ts-ignore
+        att.blob = buff
+        let id = await this.db.add(ATTACHMENTS, att)
+        let new_att = await this.db.get(ATTACHMENTS,id)
+        return {
+            success:true,
+            data:[new_att]
+        }
     }
 
     async new_object(props?: JDProps): Promise<JDResult> {
-        let obj = {uuid: gen_id('node'), version: 0, props:props}
+        let obj = {uuid: gen_id('node'), version: 0, props:props, attachments:{}}
         let id = await this.db.add(NODES, obj)
         let new_obj = await this.db.get(NODES,id)
         return {
@@ -106,9 +200,6 @@ class IndexedDBImpl implements JDStore {
         }
     }
 
-    remove_attachment(object_id: JDObjectUUID, name: string): Promise<JDResult> {
-        return Promise.resolve(undefined);
-    }
 
     async update_object_props(object_id: JDObjectUUID, props?: JDProps): Promise<JDResult> {
         let prev_obj_ret = await this.get_object(object_id)
@@ -225,9 +316,9 @@ async function node_versioning_test() {
 
     // fetch first node
     let node1_v1_result = await store.get_object(node1_result.data[0].uuid)
-    console.log('nodev1 result',node1_v1_result)
+    // console.log('nodev1 result',node1_v1_result)
     let node1_v1:JDObject = node1_v1_result.data[0]
-    console.log('node 1 is',node1_v1)
+    // console.log('node 1 is',node1_v1)
     let bart_uuid = node1_v1.uuid
     assert_eq('node name',node1_v1.props.name,'node1')
     assert_eq('node prop simpson',node1_v1.props.simpson,'bart')
@@ -241,10 +332,10 @@ async function node_versioning_test() {
 
         // // fetch full doc and nodes
         let node1_v2_result = await store.get_object(bart_uuid)
-        console.log("v2 result", node1_v2_result)
+        // console.log("v2 result", node1_v2_result)
         let node1_v2: JDObject = node1_v2_result.data[0]
-        console.log("v2 is", node1_v2)
-        console.log("v1 is", node1_v1)
+        // console.log("v2 is", node1_v2)
+        // console.log("v1 is", node1_v1)
 
         // // confirm first node has the new value
         assert_eq('node prop simpson changed', node1_v2.props.simpson, 'lisa')
@@ -288,14 +379,56 @@ async function image_attachments_test() {
     //make fresh db
     const store:IndexedDBImpl = await make_fresh_db() as unknown as IndexedDBImpl
     // make an object
+    let obj_res = await store.new_object({'type':'image'})
+    p('result of main object',obj_res)
     // make an attachment from a file on disk with the specified mimetype
+    let disk_file = "./tsconfig.json"
+    let file_stats = await fs.stat(disk_file)
+    p('stats are',file_stats)
+    let att_res = await store.new_attachment({mime:'image/pdf'},disk_file)
+    p("att res is",att_res)
+
     // add attachment to object
-    // get attachment from object
-    // get data from attachment
-    // confirm data size is correct
-    // remove attachment from object
-    // get data from attachment
-    // confirm data size is correct
+    let add_res = await store.add_attachment(obj_res.data[0].uuid,'pdf',att_res.data[0])
+    p("add_res is",add_res.data[0])
+    let att_info = add_res.data[0].attachments.pdf
+    p('att info',att_info)
+
+    {
+        // get attachment from object
+        let get_res = await store.get_attachment(obj_res.data[0].uuid, 'pdf')
+        p("get res is", get_res)
+        // confirm data size is correct
+        assert_eq('file size correct', get_res.data[0].size, file_stats.size)
+        assert_eq('buf size correct', get_res.data[0].blob.length, file_stats.size)
+    }
+    {
+        // get attachment data directly
+        // let att_info = add_res.data[0].attachments.pdf
+        // console.log('att info',att_info)
+        let get_res = await store.get_attachment_data(att_info.uuid)
+        p("get att data is", get_res)
+        assert_eq('file size correct', get_res.data[0].size, file_stats.size)
+        assert_eq('buf size correct', get_res.data[0].blob.length, file_stats.size)
+    }
+
+    {
+        // remove attachment from object
+        p("here")
+        await store.remove_attachment(obj_res.data[0].uuid,'pdf')
+        p("there")
+
+        // confirm attachment removed from object
+        let get_res = await store.get_attachment(obj_res.data[0].uuid, 'pdf')
+        p("get res is", get_res)
+        assert_eq('no attachment ref left on object',get_res.success,false)
+
+        // get data from raw attachment directly
+        let get_att = await store.get_attachment_data(att_info.uuid)
+        // confirm data size is correct
+        assert_eq('file size correct', get_att.data[0].size, file_stats.size)
+        assert_eq('buf size correct', get_att.data[0].blob.length, file_stats.size)
+    }
     // destroy
     store.destroy()
 }
