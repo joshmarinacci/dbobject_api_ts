@@ -105,7 +105,7 @@ class IndexedDBImpl implements JDStore {
             }
         }
         let att_info:JDAttachment = prev_obj_ret.data[0].attachments[name]
-        p("att id is",att_info)
+        // p("att id is",att_info)
         let arr = await this.db.getAllFromIndex(ATTACHMENTS,BY_UUID,att_info.uuid)
         // p("att is",arr)
         return {
@@ -115,9 +115,9 @@ class IndexedDBImpl implements JDStore {
     }
 
     async get_attachment_data(att_id:JDObjectUUID):Promise<JDResult> {
-        p("att id is",att_id)
+        // p("att id is",att_id)
         let arr = await this.db.getAllFromIndex(ATTACHMENTS,BY_UUID,att_id)
-        p("att is",arr)
+        // p("att is",arr)
         return {
             success:true,
             data:arr,
@@ -234,7 +234,7 @@ class IndexedDBImpl implements JDStore {
 
 }
 
-async function make_fresh_db():Promise<IndexedDBImpl> {
+async function make_fresh_db():Promise<JDStore> {
     let db = new IndexedDBImpl()
     await db.open()
     return db
@@ -355,6 +355,7 @@ async function node_versioning_test() {
     //
     // let size = await store.get_total_size_bytes()
     // log.info('total size is',size)
+    // @ts-ignore
     store.destroy()
 }
 
@@ -380,24 +381,24 @@ async function image_attachments_test() {
     const store:IndexedDBImpl = await make_fresh_db() as unknown as IndexedDBImpl
     // make an object
     let obj_res = await store.new_object({'type':'image'})
-    p('result of main object',obj_res)
+    // p('result of main object',obj_res)
     // make an attachment from a file on disk with the specified mimetype
     let disk_file = "./tsconfig.json"
     let file_stats = await fs.stat(disk_file)
-    p('stats are',file_stats)
+    // p('stats are',file_stats)
     let att_res = await store.new_attachment({mime:'image/pdf'},disk_file)
-    p("att res is",att_res)
+    // p("att res is",att_res)
 
     // add attachment to object
     let add_res = await store.add_attachment(obj_res.data[0].uuid,'pdf',att_res.data[0])
-    p("add_res is",add_res.data[0])
+    // p("add_res is",add_res.data[0])
     let att_info = add_res.data[0].attachments.pdf
-    p('att info',att_info)
+    // p('att info',att_info)
 
     {
         // get attachment from object
         let get_res = await store.get_attachment(obj_res.data[0].uuid, 'pdf')
-        p("get res is", get_res)
+        // p("get res is", get_res)
         // confirm data size is correct
         assert_eq('file size correct', get_res.data[0].size, file_stats.size)
         assert_eq('buf size correct', get_res.data[0].blob.length, file_stats.size)
@@ -407,20 +408,20 @@ async function image_attachments_test() {
         // let att_info = add_res.data[0].attachments.pdf
         // console.log('att info',att_info)
         let get_res = await store.get_attachment_data(att_info.uuid)
-        p("get att data is", get_res)
+        // p("get att data is", get_res)
         assert_eq('file size correct', get_res.data[0].size, file_stats.size)
         assert_eq('buf size correct', get_res.data[0].blob.length, file_stats.size)
     }
 
     {
         // remove attachment from object
-        p("here")
+        // p("here")
         await store.remove_attachment(obj_res.data[0].uuid,'pdf')
-        p("there")
+        // p("there")
 
         // confirm attachment removed from object
         let get_res = await store.get_attachment(obj_res.data[0].uuid, 'pdf')
-        p("get res is", get_res)
+        // p("get res is", get_res)
         assert_eq('no attachment ref left on object',get_res.success,false)
 
         // get data from raw attachment directly
