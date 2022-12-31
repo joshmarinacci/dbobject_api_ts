@@ -42,7 +42,7 @@ export interface JDStore {
 
     get_all_objects():Promise<JDResult>
 
-    get_object_versions(node1_result: JDResult): Promise<JDResult>;
+    get_object_versions(object_id:JDObjectUUID): Promise<JDResult>;
 }
 
 
