@@ -35,7 +35,7 @@ export interface JDStore {
     // get attachment as JDAttachment object by id of referring object and attachment name
     get_attachment(att_id:JDObjectUUID, name:string):Promise<JDResult>
     // get attachment as JDAttachment object by attachment id
-    get_attachment_data(att_id:JDObjectUUID, name:string):Promise<JDResult>
+    get_attachment_data(att_id:JDObjectUUID):Promise<JDResult>
     // remove attachment from an object by name
     remove_attachment(object_id:JDObjectUUID, name:string):Promise<JDResult>
 
