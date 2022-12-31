@@ -6,6 +6,9 @@ function gen_id(prefix: string):string {
     return `${prefix}_${Math.floor(Math.random()*1_000_0000)}`
 }
 
+const NODES = 'nodes'
+const ATTACHMENTS = 'attachments'
+const BY_UUID = 'by-uuid'
 interface JDSchema extends DBSchema {
     nodes: {
         key: number
@@ -36,13 +39,14 @@ class IndexedDBImpl implements JDStore {
         this.db = await openDB<JDSchema>(gen_id('myid'), 1, {
             upgrade(db) {
                 console.log("upgrade called")
-                const node_store = db.createObjectStore('nodes', {
+                const node_store = db.createObjectStore(NODES, {
                     keyPath: 'dbid',
                     autoIncrement: true,
                 });
-                node_store.createIndex('by-uuid', 'uuid');
-                const atts_store = db.createObjectStore('attachments', {
-                    // keyPath: 'productCode',
+                node_store.createIndex(BY_UUID, 'uuid');
+                const atts_store = db.createObjectStore(ATTACHMENTS, {
+                    keyPath: 'dbid',
+                    autoIncrement: true,
                 });
             },
         });
@@ -64,13 +68,8 @@ class IndexedDBImpl implements JDStore {
     }
 
     async get_object(object_id: JDObjectUUID): Promise<JDResult> {
-        let arr = await this.db.getAllFromIndex('nodes','by-uuid',object_id)
-        // console.log("returned obj",arr)
-        let fin = arr.reduce((a,b)=>{
-            if(b.version > a.version) return b
-            return a
-        })
-        // console.log("fin is",fin)
+        let arr = await this.db.getAllFromIndex(NODES,BY_UUID,object_id)
+        let fin = arr.reduce((a,b)=> b.version > a.version ? b : a)
         return {
             success:true,
             data:[fin]
@@ -78,18 +77,15 @@ class IndexedDBImpl implements JDStore {
     }
 
     async get_object_by_version(object_id: JDObjectUUID, version: number): Promise<JDResult> {
-        let arr = await this.db.getAllFromIndex('nodes','by-uuid',object_id)
-        p("all versions of",object_id,'are',arr)
+        let arr = await this.db.getAllFromIndex(NODES,BY_UUID,object_id)
         let a = arr.find(a => a.version === version)
-        p("found a",a)
         return {
             success:true,
             data:[a],
         }
     }
     async get_object_versions(object_id:JDObjectUUID): Promise<JDResult> {
-        p("getting all versions of", object_id)
-        let arr = await this.db.getAllFromIndex('nodes','by-uuid',object_id)
+        let arr = await this.db.getAllFromIndex(NODES,BY_UUID,object_id)
         return {
             success:true,
             data:arr,
@@ -102,8 +98,8 @@ class IndexedDBImpl implements JDStore {
 
     async new_object(props?: JDProps): Promise<JDResult> {
         let obj = {uuid: gen_id('node'), version: 0, props:props}
-        let id = await this.db.add('nodes', obj)
-        let new_obj = await this.db.get('nodes',id)
+        let id = await this.db.add(NODES, obj)
+        let new_obj = await this.db.get(NODES,id)
         return {
             success:true,
             data:[new_obj],
@@ -117,20 +113,16 @@ class IndexedDBImpl implements JDStore {
     async update_object_props(object_id: JDObjectUUID, props?: JDProps): Promise<JDResult> {
         let prev_obj_ret = await this.get_object(object_id)
         let prev_obj = prev_obj_ret.data[0]
-        p("old is",prev_obj)
         let new_obj = JSON.parse(JSON.stringify(prev_obj))
         if(props) {
             Object.keys(props).forEach(name => {
-                p("updating",name, props[name])
                 new_obj.props[name] = props[name]
             })
         }
         new_obj.version = prev_obj.version+1
         delete new_obj.dbid
-        p("new obj is",new_obj)
-        let id = await this.db.add('nodes', new_obj)
-        let new_obj2 = await this.db.get('nodes',id)
-        p('new obj 2',new_obj2)
+        let id = await this.db.add(NODES, new_obj)
+        let new_obj2 = await this.db.get(NODES,id)
         return {
             success:true,
             data:[new_obj2]
@@ -142,7 +134,7 @@ class IndexedDBImpl implements JDStore {
     }
 
     async get_all_objects(): Promise<JDResult> {
-        let result = await this.db.getAll('nodes')
+        let result = await this.db.getAll(NODES)
         return {
             success:true,
             data:result
