@@ -1,7 +1,7 @@
 import {JDAttachment, JDObjectUUID, JDProps, JDResult, JDStore} from "./index.js";
 import {DBSchema, deleteDB, openDB} from "idb";
 import {promises as fs} from "fs";
-import path from "path";
+import {detect_mime} from "./mime.js";
 
 const NODES = 'nodes'
 const ATTACHMENTS = 'attachments'
@@ -33,23 +33,11 @@ function p(...args:any[]) {
     console.log(...args)
 }
 
-function detect_mime(buff: Buffer, opaque: any, mime: any) {
-    if(mime) return mime
-    if(typeof opaque === 'string') {
-        let ext = path.extname(opaque)
-        p("ext is",ext)
-        if(ext === '.json') {
-            return "application/json"
-        }
-    }
-    return "application/unknown"
-}
-
 export class IndexedDBImpl implements JDStore {
     private db: any;
     constructor() {
     }
-    async open():Promise<JDResult> {
+    async open():Promise<void> {
         this.db = await openDB<JDSchema>(gen_id('myid'), 1, {
             upgrade(db) {
                 console.log("upgrade called")
@@ -65,11 +53,6 @@ export class IndexedDBImpl implements JDStore {
                 atts_store.createIndex(BY_UUID, 'uuid');
             },
         });
-        return {
-            success: true,
-            data: [],
-        }
-
     }
     async destroy() {
         await deleteDB("my-db")

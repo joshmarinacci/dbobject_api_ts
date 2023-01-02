@@ -20,6 +20,8 @@ export type JDResult = {
 }
 
 export interface JDStore {
+    open():Promise<void>,
+    destroy():Promise<void>,
     // make a new object with no parent object
     new_object(props?:JDProps):Promise<JDResult>,
     // make an object that is a new version of a previous object

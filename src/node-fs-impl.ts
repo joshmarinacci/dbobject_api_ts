@@ -1,6 +1,7 @@
-import {JDAttachment, JDObject, JDObjectUUID, JDProps, JDResult, JDStore} from "./index";
 import {promises as fs} from "fs"
 import path from "path"
+import {JDAttachment, JDObject, JDObjectUUID, JDProps, JDResult, JDStore} from "./index.js";
+import {detect_mime} from "./mime.js";
 
 type NodeJSImplArgs = {
     basedir:string,
@@ -25,12 +26,14 @@ export class NodeJSImpl implements JDStore {
     private objsdir: string;
     private attsdir: string;
     private objects: Map<string,JDObject[]>
+    private attachments: Map<string,JDAttachment>
     constructor(opts:NodeJSImplArgs) {
         this.basedir = opts.basedir
         this.objsdir = path.join(this.basedir,'objects')
         this.attsdir = path.join(this.basedir,'attachments')
         this.deleteOnExit = opts.deleteOnExit
         this.objects = new Map()
+        this.attachments = new Map()
     }
     async open() {
         await mkdir_or_skip(this.basedir)
@@ -116,10 +119,6 @@ export class NodeJSImpl implements JDStore {
 
 
 
-    add_attachment(object_id: JDObjectUUID, name: string, att: JDAttachment): Promise<JDResult> {
-        return this.not_implemented()
-    }
-
     delete_object(object_id: JDObjectUUID): Promise<JDResult> {
         return this.not_implemented()
     }
@@ -131,21 +130,67 @@ export class NodeJSImpl implements JDStore {
         }
     }
 
-    get_attachment(att_id: JDObjectUUID, name: string): Promise<JDResult> {
-        return this.not_implemented()
+    async new_attachment(props: JDProps, opaque: any): Promise<JDResult> {
+        let buff = await fs.readFile(opaque)
+        let att:JDAttachment = {
+            uuid: gen_id('attachment'),
+            mime: detect_mime(buff,opaque,props.mime),
+            props: {},
+            size: buff.length,
+        }
+        if(props) Object.keys(props).forEach(name => {
+            att.props[name] = props[name]
+        })
+        let new_att = await this._persist_attr(att,buff)
+        this.attachments.set(att.uuid,att)
+        return {
+            success:true,
+            data:[new_att]
+        }
     }
-
-    get_attachment_data(att_id: JDObjectUUID): Promise<JDResult> {
-        return this.not_implemented()
+    async get_attachment_data(att_id: JDObjectUUID): Promise<JDResult> {
+        let att = this.attachments.get(att_id)
+        if(!att) return { success:false, data:[]}
+        let buf = await fs.readFile(path.join(this.attsdir,att_id,'blob'))
+        return {
+            success:true,
+            // @ts-ignore
+            data:buf
+        }
     }
-
-
-
-    new_attachment(props: JDProps, opaque: any): Promise<JDResult> {
-        return this.not_implemented()
+    async add_attachment(object_id: JDObjectUUID, name: string, att: JDAttachment): Promise<JDResult> {
+        let prev_obj_ret = await this.get_object(object_id)
+        let prev_obj = prev_obj_ret.data[0]
+        let new_obj:JDObject = JSON.parse(JSON.stringify(prev_obj))
+        new_obj.version = prev_obj.version+1
+        let att_ref:JDAttachment = {
+            uuid:att.uuid,
+            mime:att.mime,
+            props:{},
+            size:att.size
+        };
+        new_obj.atts[name] = att_ref
+        console.log('adding attribute ref',att_ref)
+        let new_obj2 = await this._persist(new_obj)
+        if(!this.objects.has(new_obj2.uuid)) {
+            this.objects.set(new_obj2.uuid,[])
+        }
+        this.objects.get(new_obj2.uuid).push(new_obj2)
+        return {
+            success:true,
+            data:[new_obj2],
+        }
     }
-
-
+    async get_attachment(object_id: JDObjectUUID, name: string): Promise<JDResult> {
+        let obj = await this.get_object(object_id)
+        console.log("obj res is",obj.data[0])
+        let att = obj.data[0].atts[name]
+        console.log('att is',att)
+        return {
+            success:true,
+            data:[att]
+        }
+    }
     remove_attachment(object_id: JDObjectUUID, name: string): Promise<JDResult> {
         return this.not_implemented()
     }
@@ -165,7 +210,17 @@ export class NodeJSImpl implements JDStore {
         await mkdir_or_skip(pth)
         await fs.writeFile(path.join(pth,obj.version+'.json'),str)
         let raw = await fs.readFile(path.join(pth,obj.version+'.json'))
-        let new_obj = JSON.parse(raw.toString())
-        return new_obj
+        return JSON.parse(raw.toString())
+    }
+
+    private async _persist_attr(att: JDAttachment, buff: Buffer) {
+        let str = JSON.stringify(att, null, '   ');
+        let pth = path.join(this.attsdir, att.uuid)
+        await mkdir_or_skip(pth)
+        await fs.writeFile(path.join(pth, 'attr.json'), str)
+        await fs.writeFile(path.join(pth, 'blob'),buff)
+        let raw = await fs.readFile(path.join(pth, 'attr.json'))
+        return JSON.parse(raw.toString())
+
     }
 }

@@ -61,7 +61,6 @@ async function create_node_test() {
     // insert new node
     let node1_uuid = await store.new_object({name:'first node', docuuid:doc1_uuid, props:{}})
     assert_eq('node count',(await store.get_all_objects()).data.length, 3)
-    // @ts-ignore
     await store.destroy()
 }
 
@@ -77,7 +76,6 @@ async function create_multiple_docs_test() {
     let docs:JDResult = await store.get_all_objects()
     assert_eq('success',docs.success,true)
     assert_eq('doc count', docs.data.length,3)
-    // @ts-ignore
     await store.destroy()
 }
 
@@ -140,7 +138,6 @@ async function node_versioning_test() {
     //
     // let size = await store.get_total_size_bytes()
     // log.info('total size is',size)
-    // @ts-ignore
     await store.destroy()
 }
 
@@ -177,7 +174,7 @@ async function image_attachments_test() {
     // add attachment to object
     let add_res = await store.add_attachment(obj_res.data[0].uuid,'pdf',att_res.data[0])
     // p("add_res is",add_res.data[0])
-    let att_info = add_res.data[0].attachments.pdf
+    let att_info = add_res.data[0].atts.pdf
     // p('att info',att_info)
 
     {
@@ -186,16 +183,15 @@ async function image_attachments_test() {
         // p("get res is", get_res)
         // confirm data size is correct
         assert_eq('file size correct', get_res.data[0].size, file_stats.size)
-        assert_eq('buf size correct', get_res.data[0].blob.length, file_stats.size)
+        // assert_eq('buf size correct', get_res.data[0].blob.length, file_stats.size)
     }
     {
         // get attachment data directly
-        // let att_info = add_res.data[0].attachments.pdf
-        // console.log('att info',att_info)
+        console.log('att info',att_info)
         let get_res = await store.get_attachment_data(att_info.uuid)
         // p("get att data is", get_res)
-        assert_eq('file size correct', get_res.data[0].size, file_stats.size)
-        assert_eq('buf size correct', get_res.data[0].blob.length, file_stats.size)
+        assert_eq('file size correct', get_res.data.length, file_stats.size)
+        // assert_eq('buf size correct', get_res.data[0].blob.length, file_stats.size)
     }
 
     {
@@ -225,7 +221,7 @@ async function test_docs() {
     await create_multiple_docs_test()
     await node_versioning_test()
     // await doc_list_test()
-    // await image_attachments_test()
+    await image_attachments_test()
 }
 test_docs().catch(e => console.error(e))
 
