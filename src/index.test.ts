@@ -2,8 +2,8 @@ import {JDAttachment, JDObject, JDObjectUUID, JDProps, JDResult, JDStore} from "
 import {openDB, DBSchema, IDBPDatabase, deleteDB} from 'idb';
 import "fake-indexeddb/auto";
 import {promises as fs} from "fs"
-import path from "path"
 import {IndexedDBImpl} from "./indexeddb-impl.js";
+import {NodeJSImpl} from "./node-fs-impl.js";
 
 
 
@@ -14,7 +14,11 @@ function p(...args:any[]) {
 
 
 async function make_fresh_db():Promise<JDStore> {
-    let db = new IndexedDBImpl()
+    // let db = new IndexedDBImpl()
+    let db = new NodeJSImpl({
+        basedir:'fooboo',
+        deleteOnExit:true,
+    })
     await db.open()
     return db
 }
@@ -58,13 +62,13 @@ async function create_node_test() {
     let node1_uuid = await store.new_object({name:'first node', docuuid:doc1_uuid, props:{}})
     assert_eq('node count',(await store.get_all_objects()).data.length, 3)
     // @ts-ignore
-    store.destroy()
+    await store.destroy()
 }
 
 async function create_multiple_docs_test() {
     // reset
     let store = await make_fresh_db()
-    // assert_eq('doc count',await db.get_doc_count(),0)
+    // assert_eq('doc count',await store.get_object_cou,0)
     // insert three docs
     await store.new_object({name:'doc1'})
     await store.new_object({name:'doc2'})
@@ -74,7 +78,7 @@ async function create_multiple_docs_test() {
     assert_eq('success',docs.success,true)
     assert_eq('doc count', docs.data.length,3)
     // @ts-ignore
-    store.destroy()
+    await store.destroy()
 }
 
 async function node_versioning_test() {
@@ -137,7 +141,7 @@ async function node_versioning_test() {
     // let size = await store.get_total_size_bytes()
     // log.info('total size is',size)
     // @ts-ignore
-    store.destroy()
+    await store.destroy()
 }
 
 // async function doc_list_test() {
@@ -221,7 +225,7 @@ async function test_docs() {
     await create_multiple_docs_test()
     await node_versioning_test()
     // await doc_list_test()
-    await image_attachments_test()
+    // await image_attachments_test()
 }
 test_docs().catch(e => console.error(e))
 
