@@ -5,10 +5,11 @@
     "moduleResolution": "node",
     "sourceMap": true,
     "outDir": "dist",
-    "allowSyntheticDefaultImports": true
+    "allowSyntheticDefaultImports": true,
+    "declaration": true
   },
   "include": [
-    "src/*.ts",
+    "src/*.ts"
   ],
   "exclude": [
     "node_modules"
