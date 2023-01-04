@@ -185,14 +185,29 @@ export class NodeJSImpl implements JDStore {
         let obj = await this.get_object(object_id)
         console.log("obj res is",obj.data[0])
         let att = obj.data[0].atts[name]
+        if(!att) return {success:false, data:[]}
         console.log('att is',att)
         return {
             success:true,
             data:[att]
         }
     }
-    remove_attachment(object_id: JDObjectUUID, name: string): Promise<JDResult> {
-        return this.not_implemented()
+    async remove_attachment(object_id: JDObjectUUID, name: string): Promise<JDResult> {
+        let prev_obj_ret = await this.get_object(object_id)
+        let prev_obj = prev_obj_ret.data[0]
+        let new_obj:JDObject = JSON.parse(JSON.stringify(prev_obj))
+        new_obj.version = prev_obj.version+1
+        console.log('removed attribute ref',new_obj.atts[name])
+        delete new_obj.atts[name]
+        let new_obj2 = await this._persist(new_obj)
+        if(!this.objects.has(new_obj2.uuid)) {
+            this.objects.set(new_obj2.uuid,[])
+        }
+        this.objects.get(new_obj2.uuid).push(new_obj2)
+        return {
+            success:true,
+            data:[new_obj2],
+        }
     }
 
 

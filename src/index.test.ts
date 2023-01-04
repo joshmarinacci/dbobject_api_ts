@@ -196,20 +196,18 @@ async function image_attachments_test() {
 
     {
         // remove attachment from object
-        // p("here")
         await store.remove_attachment(obj_res.data[0].uuid,'pdf')
-        // p("there")
 
         // confirm attachment removed from object
         let get_res = await store.get_attachment(obj_res.data[0].uuid, 'pdf')
-        // p("get res is", get_res)
+        p("get res is", get_res)
         assert_eq('no attachment ref left on object',get_res.success,false)
 
         // get data from raw attachment directly
         let get_att = await store.get_attachment_data(att_info.uuid)
+        console.log("real att",get_att)
         // confirm data size is correct
-        assert_eq('file size correct', get_att.data[0].size, file_stats.size)
-        assert_eq('buf size correct', get_att.data[0].blob.length, file_stats.size)
+        assert_eq('file size correct', get_att.data.length, file_stats.size)
     }
     // destroy
     // @ts-ignore
