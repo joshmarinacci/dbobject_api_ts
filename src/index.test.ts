@@ -144,23 +144,6 @@ async function node_versioning_test() {
     await store.destroy()
 }
 
-// async function doc_list_test() {
-//     let db = await make_fresh_db()
-//     assert_eq('doc count',await db.get_doc_count(),0)
-//     // insert three docs
-//     await db.make_doc({name:'doc1'})
-//     await db.make_doc({name:'doc2'})
-//     await db.make_doc({name:'doc3'})
-//     // query for the two docs and confirm their names
-//     let docs = await db.get_all_docs()
-//     log.info("foo hoo ==========")
-//     let names = docs.map(d => d.name)
-//     assert_eq('doc names',names,['doc1','doc2','doc3'])
-//
-//     assert_eq('doc count',await db.get_doc_count(),3)
-//
-// }
-
 async function image_attachments_test() {
     //make fresh db
     const store = await make_fresh_db()
