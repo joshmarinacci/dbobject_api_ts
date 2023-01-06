@@ -1,8 +1,6 @@
 import {JDAttachment, JDObject, JDObjectUUID, JDProps, JDResult, JDStore} from "./index.js";
-import {openDB, DBSchema, IDBPDatabase, deleteDB} from 'idb';
 import "fake-indexeddb/auto";
 import {promises as fs} from "fs"
-import {IndexedDBImpl} from "./indexeddb-impl.js";
 import {NodeJSImpl} from "./node-fs-impl.js";
 
 
@@ -48,6 +46,11 @@ function assert_eq<V>(message:string, a:V, b:V) {
         throw new Error(`${message}`)
     }
     console.info("PASSED:", message)
+}
+
+async function init() {
+    let store = await make_fresh_db()
+    await store.destroy()
 }
 
 
@@ -210,16 +213,68 @@ async function image_attachments_test() {
         assert_eq('file size correct', get_att.data.length, file_stats.size)
     }
     // destroy
-    // @ts-ignore
-    store.destroy()
+    await store.destroy()
+}
+
+async function query_test() {
+    //create db
+    let store = await make_fresh_db() as unknown as NodeJSImpl
+    //add two objects
+    await store.new_object({name:'doc1'})
+    await store.new_object({name:'doc2'})
+    //query for the second object
+    let res = await store.query({name:'doc2'})
+    // verify
+    assert_eq('query succeeded',res.success,true)
+    assert_eq('query returned one object',res.data.length,1)
+    assert_eq('obj has correct value',res.data[0].props.name,'doc2')
+    //destroy
+    await store.destroy()
+}
+
+async function persist_reload_test() {
+    {
+        //create db
+        let store = new NodeJSImpl({
+            basedir: 'fooboo',
+            deleteOnExit: false,
+        })
+        await store.open()
+
+        //add one object
+        await store.new_object({name: 'doc1'})
+        //destroy
+        await store.destroy()
+    }
+
+    {
+        // create DB again
+        let store = new NodeJSImpl({
+            basedir: 'fooboo',
+            deleteOnExit: true,
+        })
+        await store.open()
+        let all_res = await store.get_all_objects()
+        assert_eq('only one object', all_res.data.length,1)
+        //query one object
+        let query_res = await store.query({name:'doc1'})
+        //confirm object is correct
+        assert_eq('successful',query_res.success,true)
+        assert_eq('found one object',query_res.data.length,1)
+        //now really destroy it
+        await store.destroy()
+    }
 }
 
 async function test_docs() {
+    await init()
     await create_node_test()
     await create_multiple_docs_test()
     await node_versioning_test()
     // await doc_list_test()
     await image_attachments_test()
+    await query_test()
+    await persist_reload_test()
 }
 test_docs().catch(e => console.error(e))
 

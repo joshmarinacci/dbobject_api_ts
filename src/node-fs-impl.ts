@@ -27,7 +27,9 @@ export class NodeJSImpl implements JDStore {
     private attsdir: string;
     private objects: Map<string,JDObject[]>
     private attachments: Map<string,JDAttachment>
+    private opened: boolean;
     constructor(opts:NodeJSImplArgs) {
+        this.opened = false
         this.basedir = opts.basedir
         this.objsdir = path.join(this.basedir,'objects')
         this.attsdir = path.join(this.basedir,'attachments')
@@ -39,7 +41,11 @@ export class NodeJSImpl implements JDStore {
         await mkdir_or_skip(this.basedir)
         await mkdir_or_skip(this.objsdir)
         await mkdir_or_skip(this.attsdir)
-        console.log('done')
+        let objs = await fs.readdir(this.objsdir)
+        for(let obj_uuid of objs) {
+            await this.restore(obj_uuid)
+        }
+        this.opened = true
     }
 
     async destroy() {
@@ -55,6 +61,7 @@ export class NodeJSImpl implements JDStore {
 
 
     async new_object(props?: JDProps): Promise<JDResult> {
+        if(!this.opened) throw new Error("DB not opened")
         let obj:JDObject = {uuid: gen_id('node'), version: 0, props:props, atts:{}, deleted:false}
         let new_obj:JDObject = await this._persist(obj)
         if(!this.objects.has(new_obj.uuid)) {
@@ -215,6 +222,28 @@ export class NodeJSImpl implements JDStore {
         return this.not_implemented()
     }
 
+
+
+    public async query(query: Record<string, any>): Promise<JDResult> {
+        let res:JDResult = {
+            success:true,
+            data:[]
+        }
+        for(let key of this.objects.keys()) {
+            console.log("key is",key)
+            let obj = await this.get_object(key)
+            console.log("obj is",obj)
+            if(obj.success) {
+                let obb:JDObject = obj.data[0]
+                if(this.match_query(obb,query)) {
+                    res.data.push(obb)
+                }
+            }
+        }
+        return res
+    }
+
+
     private not_implemented():Promise<JDResult> {
         throw new Error("not implemented")
     }
@@ -237,5 +266,29 @@ export class NodeJSImpl implements JDStore {
         let raw = await fs.readFile(path.join(pth, 'attr.json'))
         return JSON.parse(raw.toString())
 
+    }
+
+    private async restore(uuid: string) {
+        console.log("restoring",uuid)
+        this.objects.set(uuid,[])
+        for(let file of await fs.readdir(path.join(this.objsdir,uuid))) {
+            let raw = await fs.readFile(path.join(this.objsdir,uuid,file))
+            let obj = JSON.parse(raw.toString())
+            console.log("obj", obj)
+            this.objects.get(uuid).push(obj)
+        }
+    }
+
+    private match_query(obb: JDObject, query: Record<string, any>):boolean {
+        let matched = true
+        Object.keys(query).forEach(k => {
+            if(obb.props.hasOwnProperty(k)) {
+                let v = obb.props[k]
+                let vv = query[k]
+                if(v === vv) return
+            }
+            matched = false
+        })
+        return matched
     }
 }
