@@ -230,9 +230,7 @@ export class NodeJSImpl implements JDStore {
             data:[]
         }
         for(let key of this.objects.keys()) {
-            console.log("key is",key)
             let obj = await this.get_object(key)
-            console.log("obj is",obj)
             if(obj.success) {
                 let obb:JDObject = obj.data[0]
                 if(this.match_query(obb,query)) {
@@ -269,12 +267,10 @@ export class NodeJSImpl implements JDStore {
     }
 
     private async restore(uuid: string) {
-        console.log("restoring",uuid)
         this.objects.set(uuid,[])
         for(let file of await fs.readdir(path.join(this.objsdir,uuid))) {
             let raw = await fs.readFile(path.join(this.objsdir,uuid,file))
             let obj = JSON.parse(raw.toString())
-            console.log("obj", obj)
             this.objects.get(uuid).push(obj)
         }
     }
