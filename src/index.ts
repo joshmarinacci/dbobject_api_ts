@@ -19,6 +19,20 @@ export type JDResult = {
     data:any[]
 }
 
+export type JDOperator = "equals" | "substring"
+export type JDOptionName = "caseinsensitive"
+export type JDClause = {
+    prop:string,
+    op:JDOperator,
+    value:any,
+    options?:Record<JDOptionName, any>,
+}
+
+export type JDQuery = {
+    and: JDClause[]
+}
+
+
 export interface JDStore {
     open():Promise<void>,
     destroy():Promise<void>,
@@ -49,6 +63,8 @@ export interface JDStore {
     get_all_objects():Promise<JDResult>
 
     get_object_versions(object_id:JDObjectUUID): Promise<JDResult>;
+
+    search(query:JDQuery): Promise<JDResult>
 }
 
 

@@ -1,4 +1,12 @@
-import {JDAttachment, JDObject, JDObjectUUID, JDProps, JDResult, JDStore} from "./index.js";
+import {
+    JDAttachment,
+    JDObject,
+    JDObjectUUID,
+    JDProps,
+    JDQuery,
+    JDResult,
+    JDStore
+} from "./index.js";
 import "fake-indexeddb/auto";
 import {promises as fs} from "fs"
 import {NodeJSImpl} from "./node-fs-impl.js";
@@ -206,11 +214,42 @@ async function query_test() {
     await store.new_object({name:'doc1'})
     await store.new_object({name:'doc2'})
     //query for the second object
-    let res = await store.query({name:'doc2'})
+    let q:JDQuery = {
+        and:[
+            { prop:"name", value:"doc2", op:"equals"},
+            // { prop:"contents", value:"javascript", op:"substring", options:{caseinsensitive:true}}
+        ]
+    }
+    let res = await store.search(q)
     // verify
     assert_eq('query succeeded',res.success,true)
     assert_eq('query returned one object',res.data.length,1)
     assert_eq('obj has correct value',res.data[0].props.name,'doc2')
+    //destroy
+    await store.destroy()
+}
+async function complex_query_test() {
+    //add three objects, one is type image, two are type bookmark
+    // one of the bookmarks has contents with 'JavaScript' in it
+    // one of the bookmarks has contents with 'java' in it.
+    let store = await make_fresh_db() as unknown as NodeJSImpl
+
+    await store.new_object({type:'image', format:'jpeg'})
+    await store.new_object({type:'bookmark', contents:'some cool java is here'})
+    await store.new_object({type:'bookmark', contents:'some cool Javascript is here'})
+
+    let q:JDQuery = {
+        and:[
+            { prop:"type", op:"equals", value:"bookmark"},
+            { prop:"contents", op:"substring", value:"javascript", options:{caseinsensitive:true}}
+        ]
+    }
+
+    let res = await store.search(q)
+    // verify
+    assert_eq('query succeeded',res.success,true)
+    assert_eq('query returned one object',res.data.length,1)
+    assert_eq('obj has correct value',res.data[0].props.contents,'some cool Javascript is here')
     //destroy
     await store.destroy()
 }
@@ -240,7 +279,16 @@ async function persist_reload_test() {
         let all_res = await store.get_all_objects()
         assert_eq('only one object', all_res.data.length,1)
         //query one object
-        let query_res = await store.query({name:'doc1'})
+        let q:JDQuery = {
+            and:[
+                {
+                    prop:"name",
+                    op:"equals",
+                    value:'doc1'
+                }
+            ]
+        }
+        let query_res = await store.search(q)
         //confirm object is correct
         assert_eq('successful',query_res.success,true)
         assert_eq('found one object',query_res.data.length,1)
@@ -257,6 +305,7 @@ async function test_docs() {
     // await doc_list_test()
     await image_attachments_test()
     await query_test()
+    await complex_query_test()
     await persist_reload_test()
 }
 test_docs().catch(e => console.error(e))

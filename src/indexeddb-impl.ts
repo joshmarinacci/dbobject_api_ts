@@ -214,4 +214,11 @@ export class IndexedDBImpl implements JDStore {
         }
     }
 
+    async search():Promise<JDResult> {
+        return {
+            success:false,
+            data:[]
+        }
+    }
+
 }

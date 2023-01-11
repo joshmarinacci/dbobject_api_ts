@@ -1,6 +1,14 @@
 import {promises as fs} from "fs"
 import path from "path"
-import {JDAttachment, JDObject, JDObjectUUID, JDProps, JDResult, JDStore} from "./index.js";
+import {
+    JDAttachment, JDClause,
+    JDObject,
+    JDObjectUUID,
+    JDProps,
+    JDQuery,
+    JDResult,
+    JDStore
+} from "./index.js";
 import {detect_mime} from "./mime.js";
 
 type NodeJSImplArgs = {
@@ -224,7 +232,7 @@ export class NodeJSImpl implements JDStore {
 
 
 
-    public async query(query: Record<string, any>): Promise<JDResult> {
+    public async search(query: JDQuery): Promise<JDResult> {
         let res:JDResult = {
             success:true,
             data:[]
@@ -239,6 +247,35 @@ export class NodeJSImpl implements JDStore {
             }
         }
         return res
+    }
+
+    private match_query(obj: JDObject, query: JDQuery):boolean {
+        console.log("doing query", query)
+        console.log("on object", obj)
+        let passed = true
+        query.and.forEach((cla:JDClause) => {
+            if(!this.match_clause(obj,cla)) {
+                passed = false
+            }
+        })
+        return passed
+    }
+    private match_clause(obj: JDObject, cla: JDClause):boolean {
+        if(!obj.props.hasOwnProperty(cla.prop)) return false
+        console.log("clause",cla)
+        let prop = obj.props[cla.prop]
+        if(cla.op === "equals") {
+            return prop === cla.value;
+
+        }
+        if(cla.op === 'substring') {
+            if(cla.options && cla.options.caseinsensitive === true) {
+                return prop.toLowerCase().includes(cla.value.toLowerCase())
+            }
+            return prop.includes(cla.value)
+        }
+        console.log("shouldn't be here")
+        throw new Error("shdnt be here")
     }
 
 
@@ -275,16 +312,4 @@ export class NodeJSImpl implements JDStore {
         }
     }
 
-    private match_query(obb: JDObject, query: Record<string, any>):boolean {
-        let matched = true
-        Object.keys(query).forEach(k => {
-            if(obb.props.hasOwnProperty(k)) {
-                let v = obb.props[k]
-                let vv = query[k]
-                if(v === vv) return
-            }
-            matched = false
-        })
-        return matched
-    }
 }
