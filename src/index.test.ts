@@ -264,7 +264,14 @@ async function persist_reload_test() {
         await store.open()
 
         //add one object
-        await store.new_object({name: 'doc1'})
+        let doc_res = await store.new_object({name: 'doc1'})
+
+        let disk_file = "./tsconfig.json"
+        let file_stats = await fs.stat(disk_file)
+        let att_res = await store.new_attachment({mime:'image/pdf'},disk_file)
+        // add attachment to object
+        let add_res = await store.add_attachment(doc_res.data[0].uuid,'pdf',att_res.data[0])
+
         //destroy
         await store.destroy()
     }
@@ -292,6 +299,14 @@ async function persist_reload_test() {
         //confirm object is correct
         assert_eq('successful',query_res.success,true)
         assert_eq('found one object',query_res.data.length,1)
+
+        //get the attachment
+        let att_res = await store.get_attachment(query_res.data[0].uuid,'pdf')
+        assert_eq('successful attachment lookup',att_res.success,true)
+
+        let data_res = await store.get_attachment_data(att_res.data[0].uuid)
+        assert_eq('successful attachment data lookup',data_res.success,true)
+        assert_eq('data length',data_res.data.length, att_res.data[0].size)
         //now really destroy it
         await store.destroy()
     }

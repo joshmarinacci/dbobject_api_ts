@@ -53,6 +53,10 @@ export class NodeJSImpl implements JDStore {
         for(let obj_uuid of objs) {
             await this.restore(obj_uuid)
         }
+        let atts = await fs.readdir(this.attsdir)
+        for(let att_uuid of atts) {
+            await this.restore_att(att_uuid)
+        }
         this.opened = true
     }
 
@@ -312,4 +316,10 @@ export class NodeJSImpl implements JDStore {
         }
     }
 
+    private async restore_att(att_uuid: string) {
+        let pth = path.join(this.attsdir,att_uuid)
+        let raw = await fs.readFile(path.join(pth,'attr.json'))
+        let att_obj = JSON.parse(raw.toString())
+        this.attachments.set(att_uuid,att_obj)
+    }
 }
