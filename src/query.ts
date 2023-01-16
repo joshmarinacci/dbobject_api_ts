@@ -11,7 +11,6 @@ export function match_query(obj: JDObject, query: JDQuery):boolean {
 }
 export function match_clause(obj: JDObject, cla: JDClause):boolean {
     if(!obj.props.hasOwnProperty(cla.prop)) return false
-    console.log("clause",cla)
     let prop = obj.props[cla.prop]
     if(cla.op === "equals") {
         return prop === cla.value;
