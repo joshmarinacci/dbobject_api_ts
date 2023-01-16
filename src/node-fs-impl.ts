@@ -10,6 +10,7 @@ import {
     JDStore
 } from "./index.js";
 import {detect_mime} from "./mime.js";
+import {match_query} from "./query.js";
 
 type NodeJSImplArgs = {
     basedir:string,
@@ -245,7 +246,7 @@ export class NodeJSImpl implements JDStore {
             let obj = await this.get_object(key)
             if(obj.success) {
                 let obb:JDObject = obj.data[0]
-                if(this.match_query(obb,query)) {
+                if(match_query(obb,query)) {
                     res.data.push(obb)
                 }
             }
@@ -253,34 +254,6 @@ export class NodeJSImpl implements JDStore {
         return res
     }
 
-    private match_query(obj: JDObject, query: JDQuery):boolean {
-        console.log("doing query", query)
-        console.log("on object", obj)
-        let passed = true
-        query.and.forEach((cla:JDClause) => {
-            if(!this.match_clause(obj,cla)) {
-                passed = false
-            }
-        })
-        return passed
-    }
-    private match_clause(obj: JDObject, cla: JDClause):boolean {
-        if(!obj.props.hasOwnProperty(cla.prop)) return false
-        console.log("clause",cla)
-        let prop = obj.props[cla.prop]
-        if(cla.op === "equals") {
-            return prop === cla.value;
-
-        }
-        if(cla.op === 'substring') {
-            if(cla.options && cla.options.caseinsensitive === true) {
-                return prop.toLowerCase().includes(cla.value.toLowerCase())
-            }
-            return prop.includes(cla.value)
-        }
-        console.log("shouldn't be here")
-        throw new Error("shdnt be here")
-    }
 
 
     private not_implemented():Promise<JDResult> {

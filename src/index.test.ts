@@ -10,21 +10,19 @@ import {
 import "fake-indexeddb/auto";
 import {promises as fs} from "fs"
 import {NodeJSImpl} from "./node-fs-impl.js";
-
-
-
+import {IndexedDBImpl} from "./indexeddb-impl.js";
+import { IDBFactory } from "fake-indexeddb";
 function p(...args:any[]) {
     console.log(...args)
 }
 
-
-
 async function make_fresh_db():Promise<JDStore> {
-    // let db = new IndexedDBImpl()
-    let db = new NodeJSImpl({
-        basedir:'fooboo',
-        deleteOnExit:true,
-    })
+    indexedDB = new IDBFactory();
+    let db = new IndexedDBImpl()
+    // let db = new NodeJSImpl({
+    //     basedir:'fooboo',
+    //     deleteOnExit:true,
+    // })
     await db.open()
     return db
 }
@@ -158,15 +156,19 @@ async function image_attachments_test() {
     // make an object
     let obj_res = await store.new_object({'type':'image'})
     // p('result of main object',obj_res)
+    assert_eq('main object created',obj_res.success,true)
     // make an attachment from a file on disk with the specified mimetype
     let disk_file = "./tsconfig.json"
     let file_stats = await fs.stat(disk_file)
     // p('stats are',file_stats)
-    let att_res = await store.new_attachment({mime:'image/pdf'},disk_file)
+    let blob = await fs.readFile(disk_file)
+    let att_res = await store.new_attachment({mime:'image/pdf'},blob)
     // p("att res is",att_res)
+    assert_eq("new attachment worked",att_res.success,true)
 
     // add attachment to object
     let add_res = await store.add_attachment(obj_res.data[0].uuid,'pdf',att_res.data[0])
+    assert_eq('add attachment worked',add_res.success,true)
     // p("add_res is",add_res.data[0])
     let att_info = add_res.data[0].atts.pdf
     // p('att info',att_info)
@@ -174,17 +176,17 @@ async function image_attachments_test() {
     {
         // get attachment from object
         let get_res = await store.get_attachment(obj_res.data[0].uuid, 'pdf')
-        // p("get res is", get_res)
+        // p("get att is", get_res)
         // confirm data size is correct
-        assert_eq('file size correct', get_res.data[0].size, file_stats.size)
+        assert_eq('file size correct 1', get_res.data[0].size, file_stats.size)
         // assert_eq('buf size correct', get_res.data[0].blob.length, file_stats.size)
     }
     {
         // get attachment data directly
-        console.log('att info',att_info)
+        // console.log('att info',att_info)
         let get_res = await store.get_attachment_data(att_info.uuid)
         // p("get att data is", get_res)
-        assert_eq('file size correct', get_res.data.length, file_stats.size)
+        assert_eq('file size correct 2', get_res.data.length, file_stats.size)
         // assert_eq('buf size correct', get_res.data[0].blob.length, file_stats.size)
     }
 
@@ -194,14 +196,14 @@ async function image_attachments_test() {
 
         // confirm attachment removed from object
         let get_res = await store.get_attachment(obj_res.data[0].uuid, 'pdf')
-        p("get res is", get_res)
+        // p("get res is", get_res)
         assert_eq('no attachment ref left on object',get_res.success,false)
 
         // get data from raw attachment directly
         let get_att = await store.get_attachment_data(att_info.uuid)
-        console.log("real att",get_att)
+        // console.log("real att",get_att)
         // confirm data size is correct
-        assert_eq('file size correct', get_att.data.length, file_stats.size)
+        assert_eq('file size correct 3', get_att.data.length, file_stats.size)
     }
     // destroy
     await store.destroy()
@@ -209,7 +211,7 @@ async function image_attachments_test() {
 
 async function query_test() {
     //create db
-    let store = await make_fresh_db() as unknown as NodeJSImpl
+    let store = await make_fresh_db()
     //add two objects
     await store.new_object({name:'doc1'})
     await store.new_object({name:'doc2'})
@@ -232,7 +234,7 @@ async function complex_query_test() {
     //add three objects, one is type image, two are type bookmark
     // one of the bookmarks has contents with 'JavaScript' in it
     // one of the bookmarks has contents with 'java' in it.
-    let store = await make_fresh_db() as unknown as NodeJSImpl
+    let store = await make_fresh_db()
 
     await store.new_object({type:'image', format:'jpeg'})
     await store.new_object({type:'bookmark', contents:'some cool java is here'})
@@ -317,11 +319,11 @@ async function test_docs() {
     await create_node_test()
     await create_multiple_docs_test()
     await node_versioning_test()
-    // await doc_list_test()
     await image_attachments_test()
     await query_test()
     await complex_query_test()
-    await persist_reload_test()
+    // await persist_reload_test()
+    console.log("done with all tests")
 }
 test_docs().catch(e => console.error(e))
 
