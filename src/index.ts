@@ -1,2 +1,2 @@
-export * from "./api"
-export * from "./indexeddb-impl"
+export * from "./api.js"
+export * from "./indexeddb-impl.js"
