@@ -82,11 +82,11 @@ export class IndexedDBImpl implements JDStore {
   }
   async destroy() {
     console.log("destroying db");
-    // await deleteDB(this.db_name, {
-    //     blocked(currentVersion: number, event: IDBVersionChangeEvent) {
-    //         console.log("blocked",currentVersion, event)
-    //     }
-    // })
+    await deleteDB(this.db_name, {
+      blocked(currentVersion: number, event: IDBVersionChangeEvent) {
+        console.log("blocked", currentVersion, event);
+      },
+    });
   }
   async add_attachment(
     object_id: JDObjectUUID,
