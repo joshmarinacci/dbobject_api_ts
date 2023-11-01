@@ -1,6 +1,4 @@
-
 # query design
-
 
 support ANDs and ORs
 support querying multiple properties
@@ -14,15 +12,15 @@ enums?
 
 ```json
 [
-  { "prop":"name", "value":"bob", "comparison":"equals" },
-  [ "name", "=", "bob"],
-  { "operation": "or", "clauses":[] },
-  { "operation": "and", "clauses":[] },
+  { "prop": "name", "value": "bob", "comparison": "equals" },
+  ["name", "=", "bob"],
+  { "operation": "or", "clauses": [] },
+  { "operation": "and", "clauses": [] },
 
   {
     "and": [
-      { "prop": "name", "op": "equals", "value": "bob"},
-      { "name":  { "equals": "value" } }
+      { "prop": "name", "op": "equals", "value": "bob" },
+      { "name": { "equals": "value" } }
     ]
   }
 ]
@@ -31,17 +29,20 @@ enums?
 find all documents when type is bookmark and the contents contains the string "javascript"
 
 ```json
-{ "and":
-  [
-    { "prop":"type", "op":"equals", "value":"bookmark" },
-    { "prop":"contents", "op": "substring", "value":"javascript", "options": { "caseinsensitive": true }}
+{
+  "and": [
+    { "prop": "type", "op": "equals", "value": "bookmark" },
+    {
+      "prop": "contents",
+      "op": "substring",
+      "value": "javascript",
+      "options": { "caseinsensitive": true }
+    }
   ]
 }
 ```
 
-
-
-# projection / pick
+## projection / pick
 
 Ignore for now. You always get the first object.
 Get vs get with attachments blobs?

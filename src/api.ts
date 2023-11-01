@@ -1,72 +1,80 @@
-export type JDProps = Record<string,any>;
-export type JDObjectUUID = string
+export type JDProps = Record<string, any>;
+export type JDObjectUUID = string;
 export type JDAttachment = {
-    uuid:JDObjectUUID, // UUID just for the attachment
-    size:number, // size in bytes
-    mime:string, // mime type. should be one of the valid mimetypes
-    props:JDProps,
-}
+  uuid: JDObjectUUID; // UUID just for the attachment
+  size: number; // size in bytes
+  mime: string; // mime type. should be one of the valid mimetypes
+  props: JDProps;
+};
 export type JDObject = {
-    uuid:string,
-    version:number,
-    props:JDProps,
-    atts:Record<string,JDAttachment>,
-    deleted:boolean,
-}
+  uuid: string;
+  version: number;
+  props: JDProps;
+  atts: Record<string, JDAttachment>;
+  deleted: boolean;
+};
 
 export type JDResult = {
-    success:boolean
-    data:any[]
-}
+  success: boolean;
+  data: any[];
+};
 
-export type JDOperator = "equals" | "substring"
-export type JDOptionName = "caseinsensitive"
+export type JDOperator = "equals" | "substring";
+export type JDOptionName = "caseinsensitive";
 export type JDClause = {
-    prop:string,
-    op:JDOperator,
-    value:any,
-    options?:Record<JDOptionName, any>,
-}
+  prop: string;
+  op: JDOperator;
+  value: any;
+  options?: Record<JDOptionName, any>;
+};
 
 export type JDQuery = {
-    and: JDClause[]
-}
-
+  and: JDClause[];
+};
 
 export interface JDStore {
-    open():Promise<void>,
-    destroy():Promise<void>,
-    // make a new object with no parent object
-    new_object(props?:JDProps):Promise<JDResult>,
-    // make an object that is a new version of a previous object
-    version_object(source_id:JDObjectUUID,props?:JDProps):Promise<JDResult>
-    // make a new object that is a new version of a previous object, but with different props
-    update_object_props(object_id:JDObjectUUID, props?:JDProps):Promise<JDResult>
-    // delete the object. marks as deleted. history can still be retrieved
-    delete_object(object_id:JDObjectUUID):Promise<JDResult>
-    // make an attachment
-    new_attachment(props:JDProps, opaque:any):Promise<JDResult>
-    // add existing attachment to an object by name
-    add_attachment(object_id:JDObjectUUID, name:string, att:JDAttachment):Promise<JDResult>
-    // get attachment as JDAttachment object by id of referring object and attachment name
-    get_attachment(att_id:JDObjectUUID, name:string):Promise<JDResult>
-    // get attachment as JDAttachment object by attachment id
-    get_attachment_data(att_id:JDObjectUUID):Promise<JDResult>
-    // remove attachment from an object by name
-    remove_attachment(object_id:JDObjectUUID, name:string):Promise<JDResult>
+  open(): Promise<void>;
+  destroy(): Promise<void>;
+  // make a new object with no parent object
+  new_object(props?: JDProps): Promise<JDResult>;
+  // make an object that is a new version of a previous object
+  version_object(source_id: JDObjectUUID, props?: JDProps): Promise<JDResult>;
+  // make a new object that is a new version of a previous object, but with different props
+  update_object_props(
+    object_id: JDObjectUUID,
+    props?: JDProps,
+  ): Promise<JDResult>;
+  // delete the object. marks as deleted. history can still be retrieved
+  delete_object(object_id: JDObjectUUID): Promise<JDResult>;
+  // make an attachment
+  new_attachment(props: JDProps, opaque: any): Promise<JDResult>;
+  // add existing attachment to an object by name
+  add_attachment(
+    object_id: JDObjectUUID,
+    name: string,
+    att: JDAttachment,
+  ): Promise<JDResult>;
+  // get attachment as JDAttachment object by id of referring object and attachment name
+  get_attachment(att_id: JDObjectUUID, name: string): Promise<JDResult>;
+  // get attachment as JDAttachment object by attachment id
+  get_attachment_data(att_id: JDObjectUUID): Promise<JDResult>;
+  // remove attachment from an object by name
+  remove_attachment(object_id: JDObjectUUID, name: string): Promise<JDResult>;
 
-    // get new-est version of the specified object
-    get_object(object_id:JDObjectUUID):Promise<JDResult>
-    // get specific object by specific version
-    get_object_by_version(object_id:JDObjectUUID, version:number):Promise<JDResult>
+  // get new-est version of the specified object
+  get_object(object_id: JDObjectUUID): Promise<JDResult>;
+  // get specific object by specific version
+  get_object_by_version(
+    object_id: JDObjectUUID,
+    version: number,
+  ): Promise<JDResult>;
 
-    get_all_objects():Promise<JDResult>
+  get_all_objects(): Promise<JDResult>;
 
-    get_object_versions(object_id:JDObjectUUID): Promise<JDResult>;
+  get_object_versions(object_id: JDObjectUUID): Promise<JDResult>;
 
-    search(query:JDQuery): Promise<JDResult>
+  search(query: JDQuery): Promise<JDResult>;
 }
-
 
 /*
 - make new object
