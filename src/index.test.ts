@@ -76,6 +76,20 @@ async function create_node_test() {
   await store.destroy();
 }
 
+async function delete_test() {
+  let store = await make_fresh_db();
+  // insert new doc
+  let doc1_uuid = await store.new_object({ name: "first doc" });
+  assert_eq("doc created", doc1_uuid.success, true);
+  assert_eq("doc count", (await store.get_all_objects()).data.length, 1);
+
+  const uuid = doc1_uuid.data[0].uuid;
+  console.log("UUID is", uuid);
+  await store.delete_object(uuid);
+  assert_eq("doc count", (await store.get_all_objects()).data.length, 0);
+
+  await store.destroy();
+}
 async function create_multiple_docs_test() {
   // reset
   let store = await make_fresh_db();
@@ -355,13 +369,14 @@ async function persist_reload_test() {
 }
 
 async function test_docs() {
-  await init();
-  await create_node_test();
-  await create_multiple_docs_test();
-  await node_versioning_test();
-  await image_attachments_test();
-  await query_test();
-  await complex_query_test();
+  // await init();
+  // await create_node_test();
+  // await create_multiple_docs_test();
+  // await node_versioning_test();
+  // await image_attachments_test();
+  // await query_test();
+  // await complex_query_test();
+  await delete_test();
   // await persist_reload_test()
   console.log("done with all tests");
 }

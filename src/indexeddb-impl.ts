@@ -7,7 +7,7 @@ import {
   JDResult,
   JDStore,
 } from "./index.js";
-import { DBSchema, deleteDB, openDB } from "idb";
+import { DBSchema, IDBPDatabase, openDB } from "idb";
 import { detect_mime } from "./mime.js";
 import { match_query } from "./query.js";
 
@@ -42,7 +42,7 @@ function p(...args: any[]) {
 }
 
 export class IndexedDBImpl implements JDStore {
-  private db: any;
+  private db: IDBPDatabase<JDSchema>;
   private db_name: string;
   constructor() {}
   async open(): Promise<void> {
@@ -82,11 +82,8 @@ export class IndexedDBImpl implements JDStore {
   }
   async destroy() {
     console.log("destroying db");
-    await deleteDB(this.db_name, {
-      blocked(currentVersion: number, event: IDBVersionChangeEvent) {
-        console.log("blocked", currentVersion, event);
-      },
-    });
+    await this.db.clear("nodes");
+    await this.db.clear("attachments");
   }
   async add_attachment(
     object_id: JDObjectUUID,
@@ -141,9 +138,10 @@ export class IndexedDBImpl implements JDStore {
   async get_attachment_data(att_id: JDObjectUUID): Promise<JDResult> {
     // p("att id is",att_id)
     let arr = await this.db.getAllFromIndex(ATTACHMENTS, BY_UUID, att_id);
-    // p("att is",arr)
+    p("att is", arr);
     return {
       success: true,
+      // @ts-ignore
       data: arr[0].blob,
     };
   }
@@ -166,8 +164,22 @@ export class IndexedDBImpl implements JDStore {
     };
   }
 
-  delete_object(object_id: JDObjectUUID): Promise<JDResult> {
-    return Promise.resolve(undefined);
+  async delete_object(object_id: JDObjectUUID): Promise<JDResult> {
+    const obj = await this.get_object(object_id);
+    console.log("obj is", obj);
+    if (obj.success && obj.data.length >= 1) {
+      const obb = obj.data[0];
+      await this.db.delete(NODES, obb.dbid);
+      return {
+        success: true,
+        data: [obb],
+      };
+    } else {
+      return {
+        success: false,
+        data: [],
+      };
+    }
   }
 
   async get_object(object_id: JDObjectUUID): Promise<JDResult> {
@@ -224,7 +236,9 @@ export class IndexedDBImpl implements JDStore {
   async new_object(props?: JDProps): Promise<JDResult> {
     let obj = { uuid: gen_id("node"), version: 0, props: props, atts: {} };
     let id = await this.db.add(NODES, obj);
+    console.log("new obj id is", id);
     let new_obj = await this.db.get(NODES, id);
+    console.log("new obj is", new_obj);
     return {
       success: true,
       data: [new_obj],
@@ -273,8 +287,8 @@ export class IndexedDBImpl implements JDStore {
     let result = await this.db.getAll(NODES);
     console.log("result is", result);
     for (let obj of result) {
-      let obb: JDObject = obj;
-      if (match_query(obb, query)) {
+      let obb = obj;
+      if (match_query(obb as JDObject, query)) {
         res.data.push(obb);
       }
     }
